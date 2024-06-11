@@ -24,7 +24,7 @@
 
 // Variablen
 String code = "";
-int aantalPlaatsen = 1;
+int aantalPlaatsen = 10;
 
 // Bibliotheken Starten
 Servo slagboom;
