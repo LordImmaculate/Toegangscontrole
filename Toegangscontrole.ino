@@ -1,12 +1,28 @@
-/*  In vullen: volledige beschrijving van de werking
+/*
+Toegangscontrole
 
-  Emil D'Hauwe
+De ultrasone sensor voor de ingang moet een auto detecteren, en de andere moet
+er geen detecteren, en de parkeerplaatsen moeten niet vol zijn, vraagt hij voor
+de code op het LCD scherm. Als hij juist is, kan de auto doorrijden. Anders
+vraagt hij opnieuw voor de code totdat hij juist is.
+
+Als de auto dan voorbijrijd wordt het aantal plaatsen met 1 vermindert. Wanneer
+de ultrasone sensor aan de andere kant een auto detecteert, en de sensor aan de
+ingang geen, gaat de slagboom open zonder dat de code moet wordeningegeven. Als
+hij daarna detecteert dat de auto weg is bij de ingang, gaat de slagboom toe en
+wordt het aantal plaatsen verhoogd met 1.
+
+Als er geen plaatsen meer zijn, komt er “VOLZET” op het lcd scherm en kunnen er
+geen nieuwe auto’s binnen, maar wel naar buiten. “VOLZET” blijft op het scherm
+totdat er een auto uitgaat.
+
+Emil D'Hauwe
 */
 
 // Bibliotheken
-#include <Servo.h>
 #include <Keypad.h>
 #include <LiquidCrystal_I2C.h>
+#include <Servo.h>
 
 // Constanten
 #define INTRIGPIN 5
@@ -36,22 +52,19 @@ const byte COLS = 4;
 byte rowPins[ROWS] = {A0, 13, 12, 11};
 byte colPins[COLS] = {10, 9, 8, 7};
 
-char hexaKeys[ROWS][COLS] = {
-    {'1', '2', '3', 'A'},
-    {'4', '5', '6', 'B'},
-    {'7', '8', '9', 'C'},
-    {'*', '0', '#', 'D'}};
+char hexaKeys[ROWS][COLS] = {{'1', '2', '3', 'A'},
+                             {'4', '5', '6', 'B'},
+                             {'7', '8', '9', 'C'},
+                             {'*', '0', '#', 'D'}};
 
 Keypad keypad1 = Keypad(makeKeymap(hexaKeys), rowPins, colPins, ROWS, COLS);
 
-void setup()
-{
+void setup() {
+  // Starten van de Seriële Monitor en de LCD
   Serial.begin(9600);
   lcd.init();
   lcd.backlight();
-  lcd.print("Aantal Plaatsen:");
-  lcd.setCursor(0, 1);
-  lcd.print(aantalPlaatsen);
+  printPlaatsen();
 
   // Pinnen Instellen
   pinMode(INTRIGPIN, OUTPUT);
@@ -60,35 +73,32 @@ void setup()
   pinMode(UITECHOPIN, INPUT);
   slagboom.attach(SLAGBOOMPIN);
 
+  // Sluit de slagboom
   sluitSlagboom();
 }
 
-void loop()
-{
+void loop() {
   // BUITENRIJDEN
 
-  if (sensUit() == true)
-  {
+  if (sensUit() == true) {
     // Er staat een wagen aan de uitrit
 
-    if (sensIn() == false)
-    {
+    if (sensIn() == false) {
       // Er staat geen wagen aan de inrit
 
       openSlagboom();
 
       // Wacht tot de wagen aan de inrit is
 
-      while (sensIn() == false)
-        ;
+      while (sensIn() == false);
 
       // Wacht tot de wagen weg is bij de inrit
 
-      while (sensIn() == true)
-        ;
+      while (sensIn() == true);
 
       sluitSlagboom();
 
+      // Verhoog het aantal plaatsen met 1 en print het op het LCD scherm
       aantalPlaatsen++;
       printPlaatsen();
     }
@@ -96,27 +106,30 @@ void loop()
 
   // BINNENRIJDEN
 
-  if (aantalPlaatsen > 0)
-  {
-    if (sensIn() == true)
-    {
+  if (aantalPlaatsen > 0) {
+    if (sensIn() == true) {
       // Er staat een wagen voor de inrit
 
-      if (sensUit() == false)
-      {
+      if (sensUit() == false) {
         // Er staat geen wagen voor uitrit
 
         lcd.clear();
         lcd.print("Geef code in");
-        if (leesCode())
-        {
+
+        // Vraag voor de code en open de slagboom als hij juist is
+        if (leesCode()) {
           openSlagboom();
 
-          while (sensUit() == false)
-            ;
-          while (sensUit() == true)
-            ;
+          // Wacht tot de wagen bij de uitrit is
+          while (sensUit() == false);
+
+          // Wacht tot de wagen weg is bij de uitrit
+          while (sensUit() == true);
+
+          // Sluit de slagboom
           sluitSlagboom();
+
+          // Verminder het aantal plaatsen met 1 en print het op het LCD scherm
           aantalPlaatsen--;
           printPlaatsen();
         }
@@ -125,8 +138,7 @@ void loop()
   }
 }
 
-bool sensIn()
-{
+bool sensIn() {
   // Lokale Variablen
   int afstand_cm;
   long pulsDuratie;
@@ -148,8 +160,7 @@ bool sensIn()
     return false;
 }
 
-bool sensUit()
-{
+bool sensUit() {
   // Lokale Variablen
   int afstand_cm;
   long pulsDuratie;
@@ -171,21 +182,17 @@ bool sensUit()
     return false;
 }
 
-void openSlagboom()
-{
+void openSlagboom() {
   // De servo draait naar 90 graden
-  for (int hoek = 90; hoek >= 0; hoek--)
-  {
+  for (int hoek = 90; hoek >= 0; hoek--) {
     slagboom.write(hoek);
     delay(SLAGBOOMDELAY_ms);
   }
   Serial.println("Slagboom open");
 }
 
-void sluitSlagboom()
-{
-  for (int hoek = 0; hoek <= 90; hoek++)
-  {
+void sluitSlagboom() {
+  for (int hoek = 0; hoek <= 90; hoek++) {
     // De servo draait naar 0 graden
     slagboom.write(hoek);
     delay(SLAGBOOMDELAY_ms);
@@ -193,28 +200,21 @@ void sluitSlagboom()
   Serial.println("Slagboom toe");
 }
 
-bool leesCode()
-{
+bool leesCode() {
   String ingegevenCode = "";
 
-  while (true)
-  {
+  while (true) {
     char toets = keypad1.getKey();
-    while (toets == 0)
-    {
+    while (toets == 0) {
       toets = keypad1.getKey();
     }
-    if (toets == '#')
-    {
-      if (ingegevenCode == GOEDECODE)
-      {
+    if (toets == '#') {
+      if (ingegevenCode == GOEDECODE) {
         Serial.println("Code correct");
         lcd.clear();
         lcd.print("Code correct");
         return true;
-      }
-      else
-      {
+      } else {
         Serial.println("Code incorrect");
         lcd.clear();
         lcd.print("Code incorrect");
@@ -222,15 +222,12 @@ bool leesCode()
       }
     }
 
-    else if (toets == '*')
-    {
+    else if (toets == '*') {
       ingegevenCode = "";
       Serial.println("Code gewist");
       lcd.clear();
       lcd.print("Code gewist");
-    }
-    else
-    {
+    } else {
       ingegevenCode += toets;
       Serial.println(ingegevenCode);
       lcd.clear();
@@ -240,21 +237,18 @@ bool leesCode()
   }
 }
 
-void printPlaatsen()
-{
-  if (aantalPlaatsen == 0)
-          {
-            lcd.clear();
-            lcd.setCursor(0, 0);
-            lcd.print("Volzet");
-          }
+void printPlaatsen() {
+  if (aantalPlaatsen == 0) {
+    lcd.clear();
+    lcd.setCursor(0, 0);
+    lcd.print("Volzet");
+  }
 
-          else
-          {
-            lcd.clear();
-            lcd.setCursor(0, 0);
-            lcd.print("Aantal Plaatsen:");
-            lcd.setCursor(0, 1);
-            lcd.print(aantalPlaatsen);
-          }
+  else {
+    lcd.clear();
+    lcd.setCursor(0, 0);
+    lcd.print("Aantal Plaatsen:");
+    lcd.setCursor(0, 1);
+    lcd.print(aantalPlaatsen);
+  }
 }

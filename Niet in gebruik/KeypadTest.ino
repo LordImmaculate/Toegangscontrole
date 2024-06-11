@@ -1,11 +1,21 @@
+/*
+Keypad Test
+Dit programma test hoe de keypad werkt door een code te vragen.
+Emil D'Hauwe
+*/
+
+// Bibliotheken
 #include <Keypad.h>
 
-const byte ROWS = 4;
-const byte COLS = 4;
-#define codeLengte 4
+// Constanten
 const String GOEDECODE = "1234";
+
+// Variablen
 String ingegevenCode = "";
 
+// Keypad
+const byte ROWS = 4;
+const byte COLS = 4;
 char hexaKeys[ROWS][COLS] = {
     {'1', '2', '3', 'A'},
     {'4', '5', '6', 'B'},
@@ -27,6 +37,7 @@ void loop()
     bool code = codeIngeven();
 }
 
+// codeIngeven is een bool, omdat dit later handig is. In dit programma heeft het geen nut.
 bool codeIngeven()
 {
     ingegevenCode = "";
